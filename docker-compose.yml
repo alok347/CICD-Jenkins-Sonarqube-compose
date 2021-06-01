@@ -1,0 +1,81 @@
+version: "3.7"
+services:
+        nginx:
+                container_name: proxyserver
+                hostname: localhost
+                image: nginx
+                volumes:
+                        - nginx-configuration:/etc/nginx
+                        - nginx-certs:/etc/ssl/private
+                ports:
+                        - 80:80
+                networks:
+                         - sonarnet
+        sonarqube:
+                   container_name: cicd_sonarqube_1
+                   image: sonarqube:8.9.0-community
+                   ports:
+                         - "9000:9000"
+                   networks:
+                            - sonarnet
+                   environment:
+                               - SONAR_EMBEDDEDDATABASE_PORT=9092 
+                   #                               - SONAR_JDBC_URL=jdbc:postgresql://db:5432/sonarqube
+                               - SONAR_JDBC_USERNAME=sonar
+                               - SONAR_JDBC_PASSWORD=sonar
+                   volumes:
+                           - sonarqube_conf:/opt/sonarqube/conf
+                           - sonarqube_data:/opt/sonarqube/data
+                           - sonarqube_extensions:/opt/sonarqube/extensions
+                           - sonarqube_bundled-plugins:/opt/sonarqube/lib/bundled-plugins
+        db:
+            container_name: db
+            image: postgres
+            ports:
+                    - "5432:5432"
+            networks:
+                     - sonarnet
+            environment:
+                        - POSTGRES_USER=sonar
+                        - POSTGRES_PASSWORD=sonar
+                        - POSTGRES_DB=sonarqube
+                        - POSTGRES_HOST_AUTH_METHOD=host
+                        - POSTGRES_PASSWORD=root@123
+            volumes:
+                    - postgresql:/var/lib/postgresql
+                    - postgresql_data:/var/lib/postgresql/data
+        jenkins:
+                image: jenkins/jenkins:lts
+                # build:
+                #      context: .
+                #      dockerfile: Dockerfile
+                privileged: true
+                user: root
+                ports:
+                       - "8080:8080"
+                container_name: jenkins
+                volumes:
+                         - jenkins_data:/var/jenkins_home
+                         - docker_sock:/var/run/docker.sock
+                         - jenkins-docker-certs:/certs/client
+                environment:
+                             - "JENKINS_OPTS=--prefix=/jenkins"
+                             - "DOCKER_TLS_CERTDIR=/certs"
+                networks:
+                          - sonarnet
+networks:
+        sonarnet:
+                name: sonarnet
+                driver: bridge
+volumes:
+        sonarqube_conf: {}
+        sonarqube_data: {}
+        sonarqube_extensions: {}
+        sonarqube_bundled-plugins: {}
+        postgresql: {}
+        postgresql_data: {}
+        jenkins_data: {}
+        docker_sock: {}
+        jenkins-docker-certs: {}
+        nginx-configuration: {}
+        nginx-certs: {}
